@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-pers-conf
+  namespace: xenon-app
+data:
+  redis.conf: |
+    databases 16
+    maxclients 12000
+    timeout 30
+    port 6379
+    tcp-keepalive 300
+    logfile ""
+    lazyfree-lazy-eviction no
+    lazyfree-lazy-expire no
+    lazyfree-lazy-server-del no
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-pers
+  namespace: xenon-app
+spec:
+  selector:
+    app: redis-pers-deployment
+  ports:
+  - port: 6379
+    protocol: TCP
+    targetPort: 6379
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: redis-pers-deployment
+  namespace: xenon-app
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: redis-pers-deployment
+    spec:
+      containers:
+      - name: redis
+        image: "redis:5.0.4-alpine"
+        command:
+          - "redis-server"
+        args:
+          - "/etc/redis/redis.conf"
+          - "--protected-mode"
+          - "no"
+          - "--appendonly"
+          - "no"
+          - "--save"
+          - "300"
+          - "1"
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 6379
+        volumeMounts:
+        - name: "redis-pers-conf"
+          mountPath: "/etc/redis"
+        - name: redis-pers-volume
+          mountPath: /data
+      volumes:
+      - name: "redis-pers-conf"
+        configMap:
+          name: "redis-pers-conf"
+          items:
+          - key: "redis.conf"
+            path: "redis.conf"
+      - name: redis-pers-volume
+        persistentVolumeClaim:
+          claimName: redis-pers-pv-claim
+      imagePullSecrets:
+        - name: regcred1
+---

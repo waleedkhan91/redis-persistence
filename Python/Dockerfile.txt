@@ -1,0 +1,6 @@
+FROM python:3.8
+RUN mkdir -p /custom_code
+RUN pip install redis
+COPY redis-test.py /custom_code
+EXPOSE 8030
+ENTRYPOINT ["python", "-u", "/custom_code/redis-test.py"]
